@@ -109,25 +109,16 @@
 
 <script>
 (function(){
-  // =========================
-  //  LÄGEN
-  // =========================
   const IS_PLAYER = (location.hash === '#player') || (new URLSearchParams(location.search).get('mode') === 'player');
 
-  // =========================
-  //  FAST SKALA – UPPDATERAD
-  // =========================
-  // Referens: röd linje 250 000 m, längd 1073,6 px
+  // Skala
   const METERS_PER_PIXEL = 250000 / 1073.6; // ≈ 232.77 m/px (≈ 4.29 px/km)
-  // Kartans mått (fallback om bilden inte hunnit ladda)
-  const MAP_WIDTH = 8192;
-  const MAP_HEIGHT = 5462;
+  const MAP_WIDTH = 8192, MAP_HEIGHT = 5462;
 
-  // Hjälpare för att alltid använda ev. override från data.json
-  let metersPerPixelOverride = NaN; // kan överskrivas av data.json
-  function getMetersPerPixel(){ return isNaN(metersPerPixelOverride) ? METERS_PER_PIXEL : metersPerPixelOverride; }
+  let metersPerPixelOverride = NaN;
+  const getMetersPerPixel = () => (isNaN(metersPerPixelOverride) ? METERS_PER_PIXEL : metersPerPixelOverride);
 
-  // ===== Grundelement
+  // DOM
   const stage = document.getElementById('stage');
   const world = document.getElementById('world');
   const map = document.getElementById('map');
@@ -157,7 +148,7 @@
   const sbLabel = document.getElementById('sbLabel');
   const playerBanner = document.getElementById('playerBanner');
 
-  // ===== Kamera
+  // Kamera
   let scale = 1, MIN = 0.1, MAX = 8, startScale = 1;
   let tx = 0, ty = 0, panning = false, sx = 0, sy = 0, stx = 0, sty = 0;
   let imgW = 0, imgH = 0;
@@ -195,7 +186,7 @@
   window.addEventListener('mousemove', e => { if (panning){ tx = stx + (e.clientX - sx); ty = sty + (e.clientY - sy); clampPan(); applyTransform(); }});
   window.addEventListener('mouseup', () => { panning=false; stage.classList.remove('grabbing'); document.body.classList.remove('grabbing'); });
 
-  // ===== Lagring (notiser)
+  // Lagring (notiser)
   const LSK = 'tyraal_markers_meta_v12';
   const DB_NAME = 'tyraal_db'; const DB_STORE = 'notes';
   let db = null;
@@ -207,13 +198,12 @@
   async function saveHTML(id, html){ if (IS_PLAYER) return; try { await idbSet(id, html); } catch(e){} }
   async function loadAllFromLocal(){ const meta = JSON.parse(localStorage.getItem(LSK) || '[]'); meta.forEach(o => createMarker(o.x, o.y, o.id, false)); const htmls = await idbBulkGet(meta.map(m => m.id)); htmls.forEach(({id, html}) => { store[id] = { html: html || '' }; }); }
 
-  // Player: läs från data.json (read‑only)
+  // Player: läs från data.json
   async function loadAllFromJSON(){
     try {
       const res = await fetch('data.json', { cache: 'no-store' });
       if (!res.ok) throw new Error('Kunde inte läsa data.json');
       const data = await res.json();
-      // Skala från JSON om finns (annars använd konstant)
       if (typeof data.metersPerPixel === 'number' && isFinite(data.metersPerPixel)) metersPerPixelOverride = data.metersPerPixel;
       if (Array.isArray(data.markers)){
         data.markers.forEach(m => { createMarker(m.x, m.y, m.id, false); store[m.id] = { html: m.html || '' }; });
@@ -224,38 +214,39 @@
   // Per‑markör cache
   const store = {}; let openId = null;
 
-  // ====== ASSETS för /img‑export ======
+  // ===== ASSETS (för export & preview) =====
   const assets = new Map(); // filename -> Blob
-  let noteImageCounter = 0;
 
-  function mimeToExt(mime){
-    if (!mime) return 'bin';
-    if (mime.includes('png')) return 'png';
-    if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
-    if (mime.includes('webp')) return 'webp';
-    if (mime.includes('gif')) return 'gif';
-    return 'bin';
-  }
-  function sanitizeName(str){
-    return (str || 'asset').toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'');
-  }
-  async function hashArrayBuffer(buf){
-    const h = await crypto.subtle.digest('SHA-1', buf);
-    const b = new Uint8Array(h);
-    return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join('').slice(0,12);
-  }
-  function dataURLToBlob(dataUrl){
-    const [head, body] = dataUrl.split(',');
-    const mimeMatch = head.match(/data:(.*?);/);
-    const mime = (mimeMatch && mimeMatch[1]) || 'application/octet-stream';
-    const bin = atob(body);
-    const len = bin.length; const arr = new Uint8Array(len);
-    for (let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
-    return new Blob([arr], { type: mime });
-  }
-  function objectURLForPreview(blob){ return URL.createObjectURL(blob); }
+  function mimeToExt(mime){ if (!mime) return 'bin'; if (mime.includes('png')) return 'png'; if (mime.includes('jpeg')||mime.includes('jpg')) return 'jpg'; if (mime.includes('webp')) return 'webp'; if (mime.includes('gif')) return 'gif'; return 'bin'; }
+  function sanitizeName(str){ return (str || 'asset').toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^-+|-+$/g,''); }
+  async function hashArrayBuffer(buf){ const h = await crypto.subtle.digest('SHA-1', buf); const b = new Uint8Array(h); return Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,12); }
+  function dataURLToBlob(dataUrl){ const [head, body] = dataUrl.split(','); const mimeMatch = head.match(/data:(.*?);/); const mime = (mimeMatch && mimeMatch[1]) || 'application/octet-stream'; const bin = atob(body); const len = bin.length; const arr = new Uint8Array(len); for (let i=0;i<len;i++) arr[i] = bin.charCodeAt(i); return new Blob([arr], { type: mime }); }
+  const objectURLForPreview = blob => URL.createObjectURL(blob);
 
-  // ===== Bildinmatning (GM)
+  // === Persistens-helpers: spara alltid "img/<filnamn>" i lagrad HTML ===
+  function serializeNoteHTMLForStorage(root){
+    const clone = root.cloneNode(true);
+    clone.querySelectorAll('img').forEach(img => {
+      const fname = img.getAttribute('data-filename');
+      const persist = img.getAttribute('data-src-persist');
+      if (fname){ img.setAttribute('data-filename', fname); }
+      img.removeAttribute('srcset');
+      if (persist){ img.setAttribute('src', persist); }
+      else if (fname){ img.setAttribute('src', `img/${fname}`); }
+    });
+    return clone.innerHTML;
+  }
+  function normalizeLoadedNoteHTML(html){
+    const wrap = document.createElement('div'); wrap.innerHTML = html || '';
+    wrap.querySelectorAll('img').forEach(img => {
+      const fname = img.getAttribute('data-filename');
+      const src = img.getAttribute('src') || '';
+      if (fname && (src.startsWith('blob:') || src.startsWith('data:'))){ img.setAttribute('src', `img/${fname}`); }
+    });
+    return wrap.innerHTML;
+  }
+
+  // Bildinmatning
   let inserting = false, handlersBound = false, fileDialogOpen = false, lastOpenPromptTs = 0;
 
   async function insertImagesFromFiles(files){
@@ -273,12 +264,14 @@
 
         const img = document.createElement('img');
         img.className = 'note-img';
-        img.dataset.filename = filename; // viktig för export
-        img.src = objectURLForPreview(blob); // lokal preview
+        img.dataset.filename = filename; // persistent id
+        img.setAttribute('data-src-persist', `img/${filename}`);
+        // snabbrendering lokalt
+        img.src = objectURLForPreview(blob);
         attachImageClick(img);
         noteBody.appendChild(img);
       }
-      if (openId){ const html = noteBody.innerHTML; store[openId] = { html }; await saveHTML(openId, html); saveMeta(); }
+      if (openId){ const html = serializeNoteHTMLForStorage(noteBody); store[openId] = { html }; await saveHTML(openId, html); saveMeta(); }
     } finally { inserting = false; }
   }
 
@@ -287,24 +280,18 @@
   function bindOnce(){ if (handlersBound) return; handlersBound = true; if (!IS_PLAYER){
       addImgBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); const now = Date.now(); if (fileDialogOpen || now - lastOpenPromptTs < 600) return; fileDialogOpen = true; lastOpenPromptTs = now; imgInput.value=''; imgInput.click(); }, {passive:false});
       imgInput.addEventListener('change', async e => { e.preventDefault(); e.stopPropagation(); try{ const files=e.target.files; if (files && files.length) await insertImagesFromFiles(files);} finally{ imgInput.value=''; fileDialogOpen=false; } });
-      noteBody.addEventListener('paste', async e => {
-        const items = e.clipboardData?.items || [];
-        const files = [];
-        for (const it of items){ if (it.kind==='file' && it.type.startsWith('image/')) files.push(it.getAsFile()); }
-        if (files.length){ e.preventDefault(); e.stopPropagation(); if (!inserting) await insertImagesFromFiles(files); }
-      });
+      noteBody.addEventListener('paste', async e => { const items = e.clipboardData?.items || []; const files = []; for (const it of items){ if (it.kind==='file' && it.type.startsWith('image/')) files.push(it.getAsFile()); } if (files.length){ e.preventDefault(); e.stopPropagation(); if (!inserting) await insertImagesFromFiles(files); } });
       noteBody.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); });
       noteBody.addEventListener('drop', async e => { e.preventDefault(); e.stopPropagation(); if (e.dataTransfer?.files?.length && !inserting) await insertImagesFromFiles(e.dataTransfer.files); });
-      noteBody.addEventListener('input', async () => { if(openId){ const html = noteBody.innerHTML; store[openId] = { html }; await saveHTML(openId, html); saveMeta(); }});
-    }
-  }
+      noteBody.addEventListener('input', async () => { if(openId){ const html = serializeNoteHTMLForStorage(noteBody); store[openId] = { html }; await saveHTML(openId, html); saveMeta(); }});
+    } }
 
-  // ===== Lightbox
+  // Lightbox
   function openLightbox(src){ lightboxImg.src = src; lightbox.style.display = 'flex'; }
   function closeLightbox(){ lightbox.style.display = 'none'; lightboxImg.src = ''; }
   lightbox.addEventListener('click', closeLightbox);
 
-  // ===== Markörer (notes‑läge)
+  // Markörer
   let creating = false, lastCreateTs = 0, lastCreatePos = { x: NaN, y: NaN };
   function tooClose(a,b){ if (!isFinite(a.x)||!isFinite(a.y)||!isFinite(b.x)||!isFinite(b.y)) return false; const dx=a.x-b.x, dy=a.y-b.y; return (dx*dx+dy*dy) < 100; }
   function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -328,7 +315,7 @@
     const m = document.createElement('div'); m.className = 'marker'; m.dataset.id = id; m.style.left = wx + 'px'; m.style.top = wy + 'px';
     m.addEventListener('click', ev => { ev.stopPropagation(); if (openId === id) { closeSidebar(); } else { openMarker(id); } });
     m.addEventListener('contextmenu', async ev => { if (IS_PLAYER) return; ev.preventDefault(); if (confirm('Ta bort denna markering och dess notis?')) { if (openId === id) closeSidebar(); world.removeChild(m); delete store[id]; saveMeta(); try { await idbSet(id, ''); } catch(_){} } });
-    // Dragga (GM endast)
+    // Drag (GM)
     let draggingLocal = false; let dx = 0, dy = 0;
     m.addEventListener('mousedown', ev => { if (mode !== 'notes') return; if (IS_PLAYER) return; if (ev.button!==0) return; draggingLocal = true; const p=clientToWorld(ev); dx = p.wx - parseFloat(m.style.left); dy = p.wy - parseFloat(m.style.top); document.body.classList.add('grabbing'); stage.classList.add('grabbing'); ev.preventDefault(); });
     window.addEventListener('mousemove', ev => { if (!draggingLocal) return; const p=clientToWorld(ev); m.style.left = (p.wx - dx) + 'px'; m.style.top = (p.wy - dy) + 'px'; });
@@ -343,18 +330,22 @@
     if (openId && openId !== id){ const prev = world.querySelector(`.marker[data-id="${openId}"]`); if (prev) prev.classList.remove('open'); }
     openId = id; const marker = world.querySelector(`.marker[data-id="${id}"]`); if (marker) marker.classList.add('open');
     if (!store[id] || typeof store[id].html !== 'string'){ const html = await idbGet(id); store[id] = { html: html || 'Skriv din not här...' }; }
-    noteBody.innerHTML = store[id].html || 'Skriv din not här...';
-    // Rebind previews för ev. tidigare sparade bilder
+
+    const normalized = normalizeLoadedNoteHTML(store[id].html || 'Skriv din not här...');
+    noteBody.innerHTML = normalized;
+
+    // Rebind previews: om vi har blobbar i minnet, visa dem; annars ladda från img/<filnamn>
     noteBody.querySelectorAll('img').forEach(img => {
       attachImageClick(img);
       const fname = img.getAttribute('data-filename');
+      if (fname){ img.setAttribute('data-src-persist', `img/${fname}`); }
       if (fname && assets.has(fname)){
         img.src = objectURLForPreview(assets.get(fname));
       }
     });
+
     sidebarTitle.textContent = 'Markering ' + id; sidebar.style.display = 'block';
     bindOnce();
-    // Player: lås redigering
     noteBody.contentEditable = IS_PLAYER ? 'false' : 'true';
     editorBtns.style.display = IS_PLAYER ? 'none' : 'flex';
     pasteHint.style.display = IS_PLAYER ? 'none' : 'block';
@@ -362,9 +353,9 @@
   function closeSidebar(){ sidebar.style.display = 'none'; if (openId){ const marker = world.querySelector(`.marker[data-id="${openId}"]`); if (marker) marker.classList.remove('open'); } openId = null; }
   stage.addEventListener('click', e => { if (mode !== 'notes') return; if (creating) return; if (e.target.classList && e.target.classList.contains('marker')) return; closeSidebar(); });
 
-  // ===== MÄTNING (fast skala)
+  // Mätning
   let mode = 'notes';
-  let measurePoints = []; let measurePath = null; let labels = [];
+  let measurePoints = []; let measurePath = null;
 
   function setMode(newMode){
     mode = newMode;
@@ -388,18 +379,15 @@
     if (!measurePath){ measurePath = document.createElementNS('http://www.w3.org/2000/svg','path'); measurePath.setAttribute('class','measure-line'); overlay.appendChild(measurePath); }
     measurePath.setAttribute('d', d);
 
-    labels.forEach(l => l.remove()); labels=[];
     let totalPx = 0; for (let i=1;i<measurePoints.length;i++){ const a=measurePoints[i-1], b=measurePoints[i]; totalPx += Math.hypot(b.x-a.x, b.y-a.y); }
     readout.textContent = 'Total: ' + formatMeters(totalPx * getMetersPerPixel());
   }
 
-  stage.addEventListener('click', e => {
-    if (mode!=='measure') return; const { wx, wy } = clientToWorld(e); measurePoints.push({x:wx,y:wy}); updateMeasurePath();
-  });
+  stage.addEventListener('click', e => { if (mode!=='measure') return; const rect = stage.getBoundingClientRect(); const wx = (e.clientX - rect.left - tx) / scale; const wy = (e.clientY - rect.top - ty) / scale; measurePoints.push({x:wx,y:wy}); updateMeasurePath(); });
   window.addEventListener('keydown', e => { if (mode!=='measure') return; if (e.key==='Escape'){ measurePoints=[]; updateMeasurePath(); } if (e.key==='Backspace' || e.key==='Delete'){ measurePoints.pop(); updateMeasurePath(); } });
 
-  // ===== Skallinje
-  const SCALE_CANDIDATES = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000]; // meter
+  // Skallinje
+  const SCALE_CANDIDATES = [500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000];
   function updateScaleBar(){
     const targetMin = 80, targetMax = 220;
     let best = SCALE_CANDIDATES[0];
@@ -412,16 +400,10 @@
     sbBar.style.width = Math.max(10, Math.round(bestPx)) + 'px';
     sbLabel.textContent = (best < 1000) ? (best + ' m') : ((best/1000) + ' km');
   }
-  function metersToScreenPx(m){ const worldPx = m / getMetersPerPixel(); return worldPx * scale; }
+  const metersToScreenPx = m => (m / getMetersPerPixel()) * scale;
 
-  // ===== Export (GM)
-  function downloadBlob(blob, filename){
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  }
+  // Export
+  function downloadBlob(blob, filename){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href); }
 
   async function exportData(){
     try {
@@ -430,14 +412,12 @@
       const htmls = await idbBulkGet(meta.map(m => m.id));
       const htmlById = {}; htmls.forEach(({id, html}) => { htmlById[id] = html || ''; });
       const mode = (exportModeSel?.value) || 'embed';
-
       const markers = meta.map(m => ({ id: m.id, x: m.x, y: m.y, html: htmlById[m.id] || '' }));
 
       if (mode === 'external'){
-        const assetFiles = new Map(); // filename -> Blob
+        const assetFiles = new Map();
         for (const mk of markers){
-          const wrap = document.createElement('div');
-          wrap.innerHTML = mk.html;
+          const wrap = document.createElement('div'); wrap.innerHTML = mk.html;
           wrap.querySelectorAll('img').forEach(img => {
             const fname = img.getAttribute('data-filename');
             if (fname && assets.has(fname)){
@@ -446,11 +426,9 @@
             } else {
               const src = img.getAttribute('src') || '';
               if (src.startsWith('data:')){
-                const blob = dataURLToBlob(src);
-                const ext = mimeToExt(blob.type);
+                const blob = dataURLToBlob(src); const ext = mimeToExt(blob.type);
                 const gen = `note-${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-                assetFiles.set(gen, blob);
-                img.setAttribute('src', `img/${gen}`);
+                assetFiles.set(gen, blob); img.setAttribute('src', `img/${gen}`);
               }
             }
           });
@@ -464,15 +442,14 @@
         return;
       }
 
-      // === EMBED som tidigare ===
+      // Embed
       const payload = { exportedAt: new Date().toISOString(), metersPerPixel: getMetersPerPixel(), markers };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      downloadBlob(blob, 'data.json');
+      downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), 'data.json');
     } catch(err){ console.error(err); alert('Export misslyckades: ' + err.message); }
   }
   btnExport.addEventListener('click', () => { if (IS_PLAYER) return; exportData(); });
 
-  // ===== Init
+  // Init
   async function init(){
     await openDB();
     if (IS_PLAYER){

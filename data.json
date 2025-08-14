@@ -1,24 +1,24 @@
 {
-  "exportedAt": "2025-08-13T23:25:53.327Z",
+  "exportedAt": "2025-08-14T14:38:14.168Z",
   "metersPerPixel": 232.8614008941878,
   "markers": [
     {
-      "id": "vgvr4y6",
-      "x": 6116.82,
-      "y": 3371.35,
-      "html": "Saint armand<img class=\"note-img\" data-filename=\"saint-armand-40-0d08bf95d649.jpg\" src=\"img/saint-armand-40-0d08bf95d649.jpg\">"
+      "id": "axhl6zy",
+      "x": 6405.21,
+      "y": 2700.18,
+      "html": "Pang<img class=\"note-img\" data-filename=\"img_e0002-4ebe603bb474.jpg\" data-src-persist=\"img/img_e0002-4ebe603bb474.jpg\" src=\"img/img_e0002-4ebe603bb474.jpg\">"
     },
     {
-      "id": "8rcvbto",
-      "x": 6395.12,
-      "y": 2695.76,
-      "html": "Vezill<img class=\"note-img\" data-filename=\"rknp0012-49a13c08b541.jpg\" src=\"img/rknp0012-49a13c08b541.jpg\">"
+      "id": "c7izqmi",
+      "x": 6121.63,
+      "y": 3384.47,
+      "html": "hund<img class=\"note-img\" data-filename=\"roum6461-a87b20edd084.jpg\" data-src-persist=\"img/roum6461-a87b20edd084.jpg\" src=\"img/roum6461-a87b20edd084.jpg\">"
     },
     {
-      "id": "efht2d0",
-      "x": 5746.49,
-      "y": 2244.49,
-      "html": "Ebbingholt<img class=\"note-img\" data-filename=\"karakt-r-9-791e834581e7.jpg\" src=\"img/karakt-r-9-791e834581e7.jpg\"><img class=\"note-img\" data-filename=\"karakt-r-5-aa55f67e5639.jpg\" src=\"img/karakt-r-5-aa55f67e5639.jpg\">"
+      "id": "x62sekv",
+      "x": 7027.86,
+      "y": 2915.94,
+      "html": "kvinna<img class=\"note-img\" data-filename=\"gnmq1578-63db8e751130.jpg\" data-src-persist=\"img/gnmq1578-63db8e751130.jpg\" src=\"img/gnmq1578-63db8e751130.jpg\">"
     }
   ]
 }
